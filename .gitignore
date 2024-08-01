@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+data/biology_abstracts.csv
+results/embeddings_1.p
+results/bak/*
+results/topic_model/basic_model
+code/tmp/
+code/.ipynb_checkpoints
