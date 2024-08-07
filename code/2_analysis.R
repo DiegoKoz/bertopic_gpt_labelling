@@ -13,6 +13,7 @@ df <- ti |>
   select(Topic, Name,model,label)
 
 df_iterations |> 
+  filter(Topic>=0) |> 
   pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
   select(iteration, Topic, Name,model,label) |> 
   filter(Topic!=-1) |> 
@@ -37,8 +38,9 @@ df_iterations |>
   ggplot(aes(prompt, mean_n_labels, color = model))+
   geom_point(position = position_dodge(width = 0.8), size = 3) +
   geom_errorbar(position = position_dodge(width = 0.8), aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
-  geom_hline(yintercept = 105,linetype='dashed')+
+  geom_hline(yintercept = 104,linetype='dashed')+
   theme_minimal()+
+  theme(text=element_text(size=24))+
   labs(y= 'number of unique names')
 
 ggsave('results/distinct_labels.png',width = 14,height = 8)
@@ -66,6 +68,8 @@ df_iterations |>
   ggplot(aes(prompt, average_n_labels, fill = model))+
   geom_col(position = position_dodge()) +
   theme_minimal()+
+  scale_y_continuous(breaks =  1:5)+
+  theme(text=element_text(size=24))+
   labs(y= 'average number of labels per topic')
 
 ggsave('results/average_n_labels.png',width = 14,height = 8)
@@ -86,9 +90,10 @@ iter_sim |>
   #        Model2 = str_replace(Model2,'_','\n')) |> 
   ggplot(aes(Model1,Model2, fill=AverageSimilarity,label=round(AverageSimilarity,digits = 2)))+
   geom_tile()+
-  geom_text()+
+  geom_text(size = 8)+
   theme_minimal()+
-  labs(x='',y='')+
+  labs(x='',y='', fill='Average\nSimilarity')+
+  theme(text=element_text(size=24))+
   scale_fill_binned(type = 'viridis')
 
 ggsave('results/labels_similarity.png',width = 14,height = 8)
