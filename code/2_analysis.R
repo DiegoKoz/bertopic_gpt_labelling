@@ -1,8 +1,10 @@
 library(tidyverse)
 library(readxl)
-
+library(scales)
 
 ti <- read_excel('results/topic_model/topic_info.xlsx', skip = 1)
+# read_csv('results/topic_model/iterations_topic_distances.csv')
+iter_sim = read_csv('results/topic_model/iterations_average_similarity.csv')
 
 
 df <- ti |> 
@@ -33,8 +35,7 @@ ggsave('results/distinct_labels.png',width = 14,height = 8)
 
 
 ### stability
-
-df_iterations <- read_excel('results/topic_model/topic_info_iteration.xlsx')
+df_iterations <- read_csv('results/topic_model/topic_info_all_iterations.csv')
 
 df_iterations |> 
   pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
@@ -60,4 +61,25 @@ df_iterations |>
 ggsave('results/average_n_labels.png',width = 14,height = 8)
 
 
+## Stability
+
+models = c("flan_snp","flan_lnp", "openai4m_snp", "openai4o_snp", "openai4m_lnp", "openai4o_lnp")
+models_labels <- c("flan\nshort name", "flan\nlong name", "GPT-4-mini\nshort name", "GPT-4\nshort name", "GPT-4-mini\nlong name", "GPT-4\nlong name")
+# models = c("flan_snp", "openai4m_snp", "openai4o_snp", "flan_lnp", "openai4m_lnp", "openai4o_lnp")
+# models_labels <- c("flan\nshort name", "GPT-4-mini\nshort name", "GPT-4\nshort name", "flan\nlong name", "GPT-4-mini\nlong name", "GPT-4\nlong name")
+
+
+iter_sim |> 
+  mutate(Model1 = factor(Model1, levels=models, labels=models_labels),
+         Model2 = factor(Model2, levels=models, labels=models_labels)) |> 
+  # mutate(Model1 = str_replace(Model1,'_','\n'),
+  #        Model2 = str_replace(Model2,'_','\n')) |> 
+  ggplot(aes(Model1,Model2, fill=AverageSimilarity,label=round(AverageSimilarity,digits = 2)))+
+  geom_tile()+
+  geom_text()+
+  theme_minimal()+
+  labs(x='',y='')+
+  scale_fill_binned(type = 'viridis')
+
+ggsave('results/labels_similarity.png',width = 14,height = 8)
 
