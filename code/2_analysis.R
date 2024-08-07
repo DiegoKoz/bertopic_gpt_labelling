@@ -5,27 +5,38 @@ library(scales)
 ti <- read_excel('results/topic_model/topic_info.xlsx', skip = 1)
 # read_csv('results/topic_model/iterations_topic_distances.csv')
 iter_sim = read_csv('results/topic_model/iterations_average_similarity.csv')
+df_iterations <- read_csv('results/topic_model/topic_info_all_iterations.csv')
 
 
 df <- ti |> 
   pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
   select(Topic, Name,model,label)
 
-
-df |> 
+df_iterations |> 
+  pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
+  select(iteration, Topic, Name,model,label) |> 
   filter(Topic!=-1) |> 
-  group_by(model) |> 
+  group_by(model, iteration) |> 
   summarise(n_labels = length(unique(label))) |> 
+  summarise(
+    mean_n_labels = mean(n_labels),
+    sd_n_labels = sd(n_labels),
+    n = n()) %>%
+  mutate(error_margin = qt(0.975, df = n - 1) * sd_n_labels / sqrt(n),
+         lower_ci = mean_n_labels - error_margin,
+         upper_ci = mean_n_labels + error_margin) |> 
   separate(model, into = c('model', 'prompt')) |> 
-  mutate(prompt= case_match(prompt,
-                            'lnp'~'long name',
-                            'snp'~'short name'),
-         model= case_match(model,.default = model,
-                           'openai4m'~'GPT-4 mini',
-                           'openai4o'~'GPT-4'),
+  mutate(
+    prompt= case_match(prompt,
+                       'lnp'~'long name',
+                       'snp'~'short name'),
+    model= case_match(model,.default = model,
+                      'openai4m'~'GPT-4 mini',
+                      'openai4o'~'GPT-4')
   ) |> 
-  ggplot(aes(prompt, n_labels, fill = model))+
-  geom_col(position = position_dodge()) +
+  ggplot(aes(prompt, mean_n_labels, color = model))+
+  geom_point(position = position_dodge(width = 0.8), size = 3) +
+  geom_errorbar(position = position_dodge(width = 0.8), aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
   geom_hline(yintercept = 105,linetype='dashed')+
   theme_minimal()+
   labs(y= 'number of unique names')
@@ -35,7 +46,6 @@ ggsave('results/distinct_labels.png',width = 14,height = 8)
 
 
 ### stability
-df_iterations <- read_csv('results/topic_model/topic_info_all_iterations.csv')
 
 df_iterations |> 
   pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
