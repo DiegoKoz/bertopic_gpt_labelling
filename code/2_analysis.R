@@ -104,7 +104,8 @@ plt3 <- iter_sim |>
 
 # ggsave('results/labels_similarity.png',width = 14,height = 8)
 
-ggarrange(ggarrange(plt1,plt2,common.legend = TRUE, legend = 'bottom',labels = 'AUTO'),plt3, ncol = 1, labels = c(NA,'C'))
 
-ggsave('results/quant_results.png',width = 16,height = 10)
+ggarrange(ggarrange(plt1,plt2,common.legend = TRUE,labels = 'AUTO'),plt3, ncol = 1, labels = c(NA,'C'))
+
+ggsave('results/quant_results',width = 14,height = 8)
 
