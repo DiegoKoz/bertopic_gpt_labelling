@@ -13,7 +13,8 @@ df <- ti |>
   pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
   select(Topic, Name,model,label)
 
-plt1 <- df_iterations |> 
+plt1 <-
+  df_iterations |> 
   filter(Topic>=0) |> 
   pivot_longer(flan_snp:openai4o_lnp, names_to = 'model', values_to = 'label') |> 
   select(iteration, Topic, Name,model,label) |> 
@@ -36,13 +37,17 @@ plt1 <- df_iterations |>
                       'openai4m'~'GPT-4 mini',
                       'openai4o'~'GPT-4')
   ) |> 
-  ggplot(aes(prompt, mean_n_labels, color = model))+
+  ggplot(aes(prompt, mean_n_labels, color = model, shape=prompt,label=round(mean_n_labels,digits = 2)))+
   geom_point(position = position_dodge(width = 0.8), size = 3) +
   geom_errorbar(position = position_dodge(width = 0.8), aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
   geom_hline(yintercept = 104,linetype='dashed')+
+  geom_vline(xintercept = 1.5,linetype= 'dotted', color='gray70')+
+  geom_text(position = position_dodge(width = 0.8),hjust = -.2, size=6)+
+  lims(y= c(NA,110))+
   theme_minimal()+
-  theme(text=element_text(size=24))+
-  labs(y= 'number of\nunique names')
+  theme(text=element_text(size=24),
+        legend.position = 'none')+
+  labs(y= 'number of\nunique names', x='')
 
 # ggsave('results/distinct_labels.png',width = 14,height = 8)
 
@@ -71,15 +76,12 @@ plt2 <-
   geom_col(position = position_dodge()) +
   geom_text(position = position_dodge(width = 1),vjust=0, size=7)+
   theme_minimal()+
-  scale_y_continuous(breaks =  1:5)+
-  theme(text=element_text(size=24))+
-  labs(y= 'average number of\nlabels per topic')
+  scale_y_continuous(breaks =  1:5,limits = c(0,6))+
+  theme(text=element_text(size=24),
+        legend.position = 'none')+
+  labs(y= 'average number of\nlabels per topic', x='')
 
 # ggsave('results/average_n_labels.png',width = 14,height = 8)
-
-
-
-
 
 ## Stability
 
@@ -89,7 +91,8 @@ models_labels <- c("flan\nshort name", "flan\nlong name", "GPT-4-mini\nshort nam
 # models_labels <- c("flan\nshort name", "GPT-4-mini\nshort name", "GPT-4\nshort name", "flan\nlong name", "GPT-4-mini\nlong name", "GPT-4\nlong name")
 
 
-plt3 <- iter_sim |> 
+plt3 <-
+  iter_sim |> 
   mutate(Model1 = factor(Model1, levels=models, labels=models_labels),
          Model2 = factor(Model2, levels=models, labels=models_labels)) |> 
   # mutate(Model1 = str_replace(Model1,'_','\n'),
@@ -99,13 +102,51 @@ plt3 <- iter_sim |>
   geom_text(size = 8)+
   theme_minimal()+
   labs(x='',y='', fill='Average\nSimilarity')+
-  theme(text=element_text(size=24))+
+  theme(text=element_text(size=18),
+        legend.position = 'bottom',
+        legend.key.width = unit(1.5, 'cm'))+
   scale_fill_binned(type = 'viridis')
 
 # ggsave('results/labels_similarity.png',width = 14,height = 8)
 
 
-ggarrange(ggarrange(plt1,plt2,common.legend = TRUE,labels = 'AUTO'),plt3, ncol = 1, labels = c(NA,'C'))
+# Qualitative results -----------------------------------------------------
 
-ggsave('results/quant_results',width = 14,height = 8)
+df_anotations <- read_excel('data/topic_info_annotations.xlsx') 
 
+
+plt4 <-
+  df_anotations |>   
+  select(Topic, contains('score')) |> 
+  filter(Topic!=-1) |> 
+  pivot_longer(-Topic,names_to = c('model','prompt'),names_pattern = "(.*)_(...)_score") |> 
+  mutate(prompt= case_match(prompt,
+                            'lnp'~'long name',
+                            'snp'~'short name'),
+         model= case_match(model,.default = model,
+                           'openai4m'~'GPT-4 mini',
+                           'openai4o'~'GPT-4')) |>
+  group_by(model, prompt) |> 
+  summarise(mean_score = mean(value),
+            sd_score = sd(value),
+            n = n()) |> 
+  mutate(error_margin = qt(0.975, df = n - 1) * sd_score / sqrt(n),
+         lower_ci = mean_score - error_margin,
+         upper_ci = mean_score + error_margin) |> 
+  ggplot(aes(prompt, mean_score, color = model, shape=prompt, label=round(mean_score,digits = 2)))+
+  geom_point(position = position_dodge(width = 0.8), size = 3) +
+  geom_text(position = position_dodge(width = 0.8),hjust = -.2, size=6,show.legend=FALSE )+
+  geom_hline(yintercept = 5, linetype='dashed')+
+  geom_vline(xintercept = 1.5,linetype= 'dotted', color='gray70')+
+  geom_errorbar(position = position_dodge(width = 0.8), aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
+  labs(y= 'mean score')+
+  scale_shape_discrete(guide = "none") + 
+  theme_minimal()+
+  theme(text=element_text(size=24),
+        legend.position = 'bottom')
+
+  
+# ggarrange(ggarrange(plt1,plt2,common.legend = TRUE,labels = 'AUTO'),plt3, ncol = 1, labels = c(NA,'C'))
+ggarrange(plt1,plt2,plt3,plt4,heights = c(1,1.5),labels = 'AUTO')
+
+ggsave('results/summary_results.png',width = 16,height = 10)
