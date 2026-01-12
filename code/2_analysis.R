@@ -40,7 +40,7 @@ plt1 <-
   ggplot(aes(prompt, mean_n_labels, color = model, shape=prompt,label=round(mean_n_labels,digits = 2)))+
   geom_point(position = position_dodge(width = 0.8), size = 3) +
   geom_errorbar(position = position_dodge(width = 0.8), aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
-  geom_hline(yintercept = 104,linetype='dashed')+
+  geom_hline(yintercept = 105,linetype='dashed')+
   geom_vline(xintercept = 1.5,linetype= 'dotted', color='gray70')+
   geom_text(position = position_dodge(width = 0.8),hjust = -.2, size=6)+
   lims(y= c(NA,110))+
@@ -85,27 +85,27 @@ plt2 <-
 
 ## Stability
 
-models = c("flan_snp","flan_lnp", "openai4m_snp", "openai4o_snp", "openai4m_lnp", "openai4o_lnp")
-models_labels <- c("flan\nshort name", "flan\nlong name", "GPT-4-mini\nshort name", "GPT-4\nshort name", "GPT-4-mini\nlong name", "GPT-4\nlong name")
-# models = c("flan_snp", "openai4m_snp", "openai4o_snp", "flan_lnp", "openai4m_lnp", "openai4o_lnp")
-# models_labels <- c("flan\nshort name", "GPT-4-mini\nshort name", "GPT-4\nshort name", "flan\nlong name", "GPT-4-mini\nlong name", "GPT-4\nlong name")
 
+models = c( "flan_lnp", "openai4o_lnp","openai4m_lnp","flan_snp", "openai4o_snp","openai4m_snp")
+models_labels <- c("flan\nlong name", "GPT-4\nlong name","GPT-4-mini\nlong name",
+                   "flan\nshort name",  "GPT-4\nshort name","GPT-4-mini\nshort name")
 
 plt3 <-
-  iter_sim |> 
-  mutate(Model1 = factor(Model1, levels=models, labels=models_labels),
-         Model2 = factor(Model2, levels=models, labels=models_labels)) |> 
-  # mutate(Model1 = str_replace(Model1,'_','\n'),
-  #        Model2 = str_replace(Model2,'_','\n')) |> 
-  ggplot(aes(Model1,Model2, fill=AverageSimilarity,label=round(AverageSimilarity,digits = 2)))+
-  geom_tile()+
-  geom_text(size = 8)+
-  theme_minimal()+
-  labs(x='',y='', fill='Average\nSimilarity')+
-  theme(text=element_text(size=18),
-        legend.position = 'bottom',
-        legend.key.width = unit(1.5, 'cm'))+
-  scale_fill_binned(type = 'viridis')
+  iter_sim |>
+  mutate(Model1 = factor(Model1, levels = models, labels = models_labels),
+         Model2 = factor(Model2, levels = models, labels = models_labels)) |>
+  ggplot(aes(Model1, Model2, fill = AverageSimilarity,
+             label = round(AverageSimilarity, digits = 2))) +
+  geom_tile() +
+  geom_text(aes(color = AverageSimilarity < 0.6), size = 8, show.legend = FALSE) +
+  scale_color_manual(values = c("TRUE" = "white", "FALSE" = "black")) +
+  theme_minimal() +
+  labs(x = "", y = "", fill = "Average\nSimilarity") +
+  theme(text = element_text(size = 18),
+        legend.position = 'none')+
+        # legend.position = "bottom",
+        # legend.key.width = unit(1.5, "cm")) +
+  scale_fill_binned(type = "viridis")
 
 # ggsave('results/labels_similarity.png',width = 14,height = 8)
 
