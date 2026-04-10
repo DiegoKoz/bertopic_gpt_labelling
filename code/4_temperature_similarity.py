@@ -9,19 +9,28 @@ sentence_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
 # 1. Read and combine all CSV files from temperature_runs directory
 print("Reading temperature run files...")
-file_list = glob.glob('../results/topic_model/temperature_runs/*.csv')
-print(f"Found {len(file_list)} files")
+file_list_gpt = glob.glob('../results/topic_model/temperature_runs/*.csv')
+file_list_flan = glob.glob('../results/topic_model/temperature_runs_flan/*.csv')
+print(f"Found {len(file_list_gpt)} GPT files and {len(file_list_flan)} FLAN files")
 
 # Read and combine all CSV files (they already have temperature and iteration columns)
-temperature_data = pd.concat([pd.read_csv(file) for file in file_list], ignore_index=True)
+df_gpt = pd.concat([pd.read_csv(file) for file in file_list_gpt], ignore_index=True)
+df_gpt['model_source'] = 'gpt4omini'
 
-# 2. Pivot longer: convert all columns starting with 'gpt4omini_lnp_t' into 'label'
+if file_list_flan:
+    df_flan = pd.concat([pd.read_csv(file) for file in file_list_flan], ignore_index=True)
+    df_flan['model_source'] = 'flan'
+    temperature_data = pd.concat([df_gpt, df_flan], ignore_index=True)
+else:
+    temperature_data = df_gpt
+
+# 2. Pivot longer: convert all columns starting with 'gpt4omini_lnp_t' or 'flan_lnp_t' into 'label'
 print("Pivoting data to long format...")
-# Get all column names that start with 'gpt4omini_lnp_t'
-temp_columns = [col for col in temperature_data.columns if col.startswith('gpt4omini_lnp_t')]
+# Get all column names that start with 'gpt4omini_lnp_t' or 'flan_lnp_t'
+temp_columns = [col for col in temperature_data.columns if col.startswith('gpt4omini_lnp_t') or col.startswith('flan_lnp_t')]
 
-# Keep Topic, temperature, and iteration columns and pivot temperature columns
-id_cols = ['Topic', 'temperature', 'iteration']
+# Keep Topic, temperature, iteration, and model_source columns and pivot temperature columns
+id_cols = ['Topic', 'temperature', 'iteration', 'model_source']
 temp_data_long = pd.melt(
     temperature_data,
     id_vars=id_cols,
@@ -48,9 +57,9 @@ print("Computing cosine similarity matrix...")
 cosine_sim_matrix = cosine_similarity(label_embeddings)
 print(f"Cosine similarity matrix shape: {cosine_sim_matrix.shape}")
 
-# 5. Create a dictionary to map (Topic, temperature) to their indices
-print("\nComputing average similarities per topic and temperature...")
-topic_temp_indices = temp_data_long.groupby(['Topic', 'temperature'], group_keys=False).apply(lambda g: g.index.tolist(), include_groups=False).to_dict()
+# 5. Create a dictionary to map (Topic, temperature, model_source) to their indices
+print("\nComputing average similarities per topic, temperature, and model...")
+topic_temp_indices = temp_data_long.groupby(['Topic', 'temperature', 'model_source'], group_keys=False).apply(lambda g: g.index.tolist(), include_groups=False).to_dict()
 
 # Function to calculate average distance
 def average_distance(indices1, indices2, cosine_sim_matrix):
@@ -60,16 +69,17 @@ def average_distance(indices1, indices2, cosine_sim_matrix):
             distances.append(cosine_sim_matrix[i, j])
     return np.mean(distances)
 
-# Compute average distances for each Topic & temperature combination
+# Compute average distances for each Topic & temperature combination within the same model
 results = []
-for (topic, temp1), indices1 in topic_temp_indices.items():
-    for (topic2, temp2), indices2 in topic_temp_indices.items():
-        if topic == topic2:  # Ensure Topic1=Topic2
+for (topic, temp1, model1), indices1 in topic_temp_indices.items():
+    for (topic2, temp2, model2), indices2 in topic_temp_indices.items():
+        if topic == topic2 and model1 == model2:  # Ensure Topic1=Topic2 and model=model
             avg_sim = average_distance(indices1, indices2, cosine_sim_matrix)
             results.append({
                 'Topic': topic,
                 'temperature1': temp1,
                 'temperature2': temp2,
+                'model_source': model1,
                 'AverageSimilarity': avg_sim
             })
 
@@ -77,10 +87,10 @@ for (topic, temp1), indices1 in topic_temp_indices.items():
 similarities_df = pd.DataFrame(results)
 print(f"Computed {len(similarities_df)} topic-temperature similarity combinations")
 
-# 6. Calculate average similarity across all topics for each temperature pair
+# 6. Calculate average similarity across all topics for each temperature and model pair
 print("\nComputing average similarities across topics...")
 average_similarity = (similarities_df
-    .groupby(['temperature1', 'temperature2'])
+    .groupby(['model_source', 'temperature1', 'temperature2'])
     .agg({'AverageSimilarity': 'mean'})
     .reset_index())
 
